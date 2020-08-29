@@ -7,6 +7,15 @@ namespace xBudget.CeiCrawler.Test
 {
     public class CeiCrawlerTest
     {
+        private readonly string _username;
+        private readonly string _password;
+
+        public CeiCrawlerTest()
+        {
+            _username = Environment.GetEnvironmentVariable("CEI_USERNAME", EnvironmentVariableTarget.Machine) ?? Environment.GetEnvironmentVariable("CEI_USERNAME");
+            _password = Environment.GetEnvironmentVariable("CEI_PASSWORD", EnvironmentVariableTarget.Machine) ?? Environment.GetEnvironmentVariable("CEI_PASSWORD");
+        }
+
         [Fact]
         public void CeiCrawler_EmptyUser()
         {
@@ -32,11 +41,8 @@ namespace xBudget.CeiCrawler.Test
         
         [Fact]
         public async Task CeiCrawler_ValidLogin()
-        {
-            var username = Environment.GetEnvironmentVariable("CEI_USERNAME", EnvironmentVariableTarget.Machine);
-            var password = Environment.GetEnvironmentVariable("CEI_PASSWORD", EnvironmentVariableTarget.Machine);
-
-            var crawler = new xBudget.CeiCrawler.Crawlers.CeiCrawler(username, password);
+        {           
+            var crawler = new xBudget.CeiCrawler.Crawlers.CeiCrawler(_username, _password);
             await crawler.Login();
             await crawler.Login();
         }
