@@ -2,9 +2,18 @@ language: csharp
 solution: xBudget.CeiCrawler/xBudget.CeiCrawler.sln
 mono: none
 dotnet: 3.1.302
+
+addons:
+  sonarcloud:
+    organization: "xbudget"
+    token:
+    secure: X8QqxxEi8X0g9kTSNe3KGCb40HgEQ838MlyocF5bLdNIb5RvJxPfzvUPENIh9wTk68lrnu7ASARiFuVAq4ZTnCJJ41zKl/B27EWXSXZrJkpNqfcECUoUZ9goV/FeKRPsp1W36kMC98kGLILLjGCxylZvfa8fvBl2Z6dX4GQDUaa9HvWnvoLyf6UKlWlBF0X8QHUnogmb6Kv7k5o3TAO9pwkfrUzFT62t7SVnEG+tIBx69SFy4WqkIV6Pfpindw4aabFul7/rt/5R7FbmQXelDv+KkNdGe/gNCd+pa4c0m7xDmGElPyG/EC9+A+g9fJmE0qnrm6cXQWwXvkrcUIzlRW2E6TXZbWHF7cIDD0hAh7FsYC3h81mRyUzEkP6BF4/f+HDwxT/GMnZ9UiVO4BJ8kQb4fa5AOfAzx1f2XnCljMy46qP3VtGrIJPl512AQu6u/9clPp6DUQE0OO+cM70LYVIpgyWxKGwIMQVrN0NXEuKKg/+dy+G93otSN+TKQO5eZEev1kXE9f22lJspgq6w0edzyDSwjOC2kKdaDV2uo/Y1FiSSZ16qXPA36/U+MJihssN8PAdS9wT50KYmANHjChEyXqASGeFjUgF+LjsmIiGVa3A/oKUQmkic0dbWG+XyPP+Sw87epoCZ2jKjLIT8k8Q+A2nfJNHjnDLjfVTKWhc=
+
 script:
-  - dotnet restore xBudget.CeiCrawler/xBudget.CeiCrawler.sln
-  - dotnet build xBudget.CeiCrawler/xBudget.CeiCrawler.sln
-  - dotnet test xBudget.CeiCrawler/xBudget.CeiCrawler.sln --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
-after_script:
-    - bash <(curl -s https://codecov.io/bash)
+- dotnet restore xBudget.CeiCrawler/xBudget.CeiCrawler.sln
+- dotnet build xBudget.CeiCrawler/xBudget.CeiCrawler.sln
+- dotnet test xBudget.CeiCrawler/xBudget.CeiCrawler.sln --no-build /p:CollectCoverage=true
+  /p:CoverletOutputFormat=opencover
+
+  after_script:
+- bash <(curl -s https://codecov.io/bash)
