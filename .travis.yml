@@ -14,6 +14,7 @@ script:
 - dotnet build xBudget.CeiCrawler/xBudget.CeiCrawler.sln
 - dotnet test xBudget.CeiCrawler/xBudget.CeiCrawler.sln --no-build /p:CollectCoverage=true
   /p:CoverletOutputFormat=opencover
+- sonar-scanner
 
   after_script:
 - bash <(curl -s https://codecov.io/bash)
