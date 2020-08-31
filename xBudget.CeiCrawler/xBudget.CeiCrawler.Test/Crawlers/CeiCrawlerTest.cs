@@ -46,5 +46,19 @@ namespace xBudget.CeiCrawler.Test
             await crawler.Login();
             await crawler.Login();
         }
+
+        [Fact]
+        public async Task CeiCrawler_GetWallet()
+        {
+            var crawler = new xBudget.CeiCrawler.Crawlers.CeiCrawler(_username, _password);
+            await crawler.GetWallet();
+        }
+
+        [Fact]
+        public async Task CeiCrawler_GetWallet_InvalidDate()
+        {
+            var crawler = new xBudget.CeiCrawler.Crawlers.CeiCrawler(_username, _password);
+            await Assert.ThrowsAsync<InvalidDateRangeException>(async () =>  await crawler.GetWallet(DateTime.MinValue));
+        }
     }
 }
