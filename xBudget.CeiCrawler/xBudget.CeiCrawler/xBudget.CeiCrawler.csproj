@@ -1,11 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Version>0.1</Version>
+    <Authors>Thiago Silva</Authors>
+    <Company />
+    <Product>xBudget</Product>
+    <PackageProjectUrl>https://github.com/xBudget/cei-crawler</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/xBudget/cei-crawler</RepositoryUrl>
+    <Description>xBudget CEI Crawler is a crawler to capture investment data for a user with an account on B3 (Brazilian stock exchange)
+
+O Canal Eletrônico do Investidor (CEI) é o portal que possibilita ao investidor a consulta consolidada de informações sobre os seus investimentos. xBudget CEI Crawler é um crawler que consulta as informações disponíveis no CEI sem a necessida de navegar pelo site.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Hangfire.Core" Version="1.7.0" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.24" />
   </ItemGroup>
 
