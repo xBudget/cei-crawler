@@ -143,6 +143,15 @@ namespace xBudget.CeiCrawler.Crawlers
                     throw new ElementNotFound("Institution name not found.");
                 }
 
+                var dateHtmlComponent = documentWalletPostPage.DocumentNode.SelectNodes("//input").Where(x => x.Id == "ctl00_ContentPlaceHolder1_txtData").Single();
+                var dateStringValue = dateHtmlComponent.GetAttributeValue<string>("value", DateTime.MinValue.ToString("dd/MM/yyyy"));
+
+                walletData.Date = DateTime.ParseExact(dateStringValue, "dd/MM/yyyy", null);
+                if (walletData.Date == DateTime.MinValue)
+                {
+                    throw new ElementNotFound("Date not found.");
+                }
+
                 var brokerName = brokerNameElement.InnerText.Split('-');
                 var institutionData = new Institution
                 {
