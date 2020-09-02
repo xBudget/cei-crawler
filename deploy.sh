@@ -7,4 +7,4 @@ echo "Packing..."
 dotnet pack ./xBudget.CeiCrawler/xBudget.CeiCrawler/xBudget.CeiCrawler.csproj -c Release
 
 echo "Pushing..."
-dotnet nuget push ./xBudget.CeiCrawler/xBudget.CeiCrawler/bin/Release/*.nupkg -a "https://nuget.org" -k $NUGET_API_KEY
+dotnet nuget push ./xBudget.CeiCrawler/xBudget.CeiCrawler/bin/Release/*.nupkg -s "https://nuget.org" -k $NUGET_API_KEY
