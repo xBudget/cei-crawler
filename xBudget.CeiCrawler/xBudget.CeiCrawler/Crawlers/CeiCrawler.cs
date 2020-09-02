@@ -1,11 +1,14 @@
 ﻿using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using xBudget.CeiCrawler.Exceptions;
+using xBudget.CeiCrawler.Model;
 
 namespace xBudget.CeiCrawler.Crawlers
 {
@@ -18,6 +21,7 @@ namespace xBudget.CeiCrawler.Crawlers
         private bool _loginDone;
 
         private const string URL_LOGIN = "https://cei.b3.com.br/CEI_Responsivo/login.aspx?MSG=SESENC";
+        private const string URL_WALLET = "https://cei.b3.com.br/CEI_Responsivo/ConsultarCarteiraAtivos.aspx";
 
         public CeiCrawler(string user, string password)
         {
@@ -35,9 +39,10 @@ namespace xBudget.CeiCrawler.Crawlers
             _password = password;
             _loginDone = false;
 
+
             if (_httpClient == null)
             {
-                _httpClient = new HttpClient();
+                _httpClient = new HttpClient() { Timeout = TimeSpan.FromMinutes(2) };
             }            
         }
 
@@ -74,6 +79,118 @@ namespace xBudget.CeiCrawler.Crawlers
             }
 
             _loginDone = true;
+        }
+
+        public async Task<Wallet> GetWallet(DateTime? date = null)
+        {
+            await Login();
+
+            var walletPageGetResult = await _httpClient.GetAsync(URL_WALLET);
+            
+            var documentWalletGetPage = new HtmlDocument();
+            documentWalletGetPage.LoadHtml(await walletPageGetResult.Content.ReadAsStringAsync());
+
+            var currentDateString = documentWalletGetPage.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_txtData\"]").GetAttributeValue("value", "");
+            var currentDate = ParseSiteDate(currentDateString);
+
+            if (date.HasValue && date < currentDate.AddMonths(-2))
+            {
+                throw new InvalidDateRangeException($"Invalid date. Current CEI date is { currentDateString }. The date must be only two months older than CEI current date.");
+            }
+
+            var formWalletPage = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ddlAgentes", "0"),
+                new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ddlContas", "0"),
+                new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$txtData", date.HasValue ? date.Value.ToString("dd/MM/yyyy") : currentDateString),
+                new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$btnConsultar", "Consultar"),
+                new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ToolkitScriptManager1", "ctl00$ContentPlaceHolder1$updFiltro|ctl00$ContentPlaceHolder1$btnConsultar"),
+                new KeyValuePair<string, string>("ctl00_ContentPlaceHolder1_ToolkitScriptManager1_HiddenField", ""),
+                new KeyValuePair<string, string>("__LASTFOCUS", "")
+            };
+            formWalletPage.AddRange(GetHiddenFields(documentWalletGetPage.DocumentNode));
+
+            var walletPagePostResult = await _httpClient.PostAsync(URL_WALLET, new FormUrlEncodedContent(formWalletPage));
+            walletPagePostResult.EnsureSuccessStatusCode();
+
+            var documentWalletPostPage = new HtmlDocument();
+            documentWalletPostPage.LoadHtml(await walletPagePostResult.Content.ReadAsStringAsync());
+
+            var walletData = new Wallet();
+
+            var tables = documentWalletPostPage.DocumentNode.SelectNodes("//table").Where(x => !string.IsNullOrEmpty(x.Id));
+
+            if (tables.Count() == 0)
+            {
+                throw new ElementNotFound("There aren't account tables with stock/treasure data.");
+            }
+
+            foreach (var table in tables)
+            {
+                var tbody = table.ChildNodes.SingleOrDefault(x => x.Name == "tbody");
+                if (tbody == null)
+                {
+                    continue;
+                }
+
+                var result = Regex.Match(table.Id, "(_ctl\\d{2}_)").Captures.First();
+
+                var tableBroker = $"ctl00_ContentPlaceHolder1_rptAgenteContaMercado{ result.Value }lblAgenteContas";
+                var brokerNameElement = documentWalletPostPage.DocumentNode.SelectNodes("//span").Where(x => x.Id == tableBroker).SingleOrDefault();
+                if (brokerNameElement == null)
+                {
+                    throw new ElementNotFound("Institution name not found.");
+                }
+
+                var dateHtmlComponent = documentWalletPostPage.DocumentNode.SelectNodes("//input").Where(x => x.Id == "ctl00_ContentPlaceHolder1_txtData").Single();
+                var dateStringValue = dateHtmlComponent.GetAttributeValue<string>("value", DateTime.MinValue.ToString("dd/MM/yyyy"));
+
+                walletData.Date = DateTime.ParseExact(dateStringValue, "dd/MM/yyyy", null);
+                if (walletData.Date == DateTime.MinValue)
+                {
+                    throw new ElementNotFound("Date not found.");
+                }
+
+                var brokerName = brokerNameElement.InnerText.Split('-');
+                var institutionData = new Institution
+                {
+                    Name = brokerName[0],
+                    Account = brokerName[1]
+                };
+
+                walletData.Accounts.Add(institutionData);
+
+                foreach (var rows in tbody.ChildNodes)
+                {
+                    var columns = rows.ChildNodes.Where(x => x.Name == "td").ToList();
+
+                    if (!columns.Any())
+                    {
+                        continue;
+                    }
+
+                    var stock = new Stock
+                    {
+                        CompanyName = columns[0].InnerText.Trim(),
+                        Type = columns[1].InnerText.Trim(),
+                        Code = columns[2].InnerText.Trim(),
+                        Isin = columns[3].InnerText.Trim(),
+                        Price = decimal.Parse(columns[4].InnerText.Trim().Replace(".", "").Replace(",", "."), NumberStyles.Currency),
+                        Quantity = int.Parse(columns[5].InnerText.Trim()),
+                        QuotationFactor = int.Parse(columns[6].InnerText.Trim()),
+                        TotalValue = decimal.Parse(columns[7].InnerText.Trim().Replace(".", "").Replace(",", "."), NumberStyles.Currency)
+                    };
+
+                    institutionData.Stocks.Add(stock);
+                }
+            }
+
+            return walletData;
+        }
+
+        private DateTime ParseSiteDate(string date)
+        {
+            return DateTime.ParseExact(date, "dd/MM/yyyy", null);
         }
 
         /// <summary>

@@ -17,3 +17,10 @@ script:
 after_script:
   - dotnet test xBudget.CeiCrawler/xBudget.CeiCrawler.sln --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
   - bash <(curl -s https://codecov.io/bash)
+
+deploy:
+  - provider: script
+    script: bash deploy.sh
+    on:
+      branch: master
+      tags: true
