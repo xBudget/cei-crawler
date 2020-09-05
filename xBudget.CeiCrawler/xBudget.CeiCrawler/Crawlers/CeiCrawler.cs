@@ -22,6 +22,7 @@ namespace xBudget.CeiCrawler.Crawlers
 
         private const string URL_LOGIN = "https://cei.b3.com.br/CEI_Responsivo/login.aspx?MSG=SESENC";
         private const string URL_WALLET = "https://cei.b3.com.br/CEI_Responsivo/ConsultarCarteiraAtivos.aspx";
+        private const string URL_OPERATIONS = "https://cei.b3.com.br/cei_responsivo/negociacao-de-ativos.aspx";
 
         public CeiCrawler(string user, string password)
         {
@@ -43,7 +44,7 @@ namespace xBudget.CeiCrawler.Crawlers
             if (_httpClient == null)
             {
                 _httpClient = new HttpClient() { Timeout = TimeSpan.FromMinutes(2) };
-            }            
+            }
         }
 
         public async Task Login()
@@ -72,7 +73,7 @@ namespace xBudget.CeiCrawler.Crawlers
             loginForm.AddRange(GetHiddenFields(webDocumentGetLogin.DocumentNode));
 
             var resultPostLogin = await _httpClient.PostAsync(URL_LOGIN, new FormUrlEncodedContent(loginForm));
-            
+
             if (!CheckCookie(resultPostLogin.Headers))
             {
                 throw new LoginFailedExecption();
@@ -81,12 +82,93 @@ namespace xBudget.CeiCrawler.Crawlers
             _loginDone = true;
         }
 
+        public async Task<OperationHistory> GetOperations()
+        {
+            await Login();
+
+            var result = new OperationHistory();
+
+            var operationsPageGetResult = await _httpClient.GetAsync(URL_OPERATIONS);
+            var documentOperationsPageGet = new HtmlDocument();
+            documentOperationsPageGet.LoadHtml(await operationsPageGetResult.Content.ReadAsStringAsync());
+
+            var initialDate = documentOperationsPageGet.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_txtDataDeBolsa\"]").GetAttributeValue("value", "");
+            if (string.IsNullOrEmpty(initialDate))
+            {
+                throw new ApplicationException("Initial date not found.");
+            }
+
+            var endDate = documentOperationsPageGet.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_txtDataAteBolsa\"]").GetAttributeValue("value", "");
+            if (string.IsNullOrEmpty(endDate))
+            {
+                throw new ApplicationException("End date not found.");
+            }
+
+            var brokers = documentOperationsPageGet.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_ddlAgentes\"]");
+            var brokersCodes = brokers.ChildNodes.Where(x => x.Name == "option" && x.GetAttributeValue("value", -1) != -1).Select(x => x.GetAttributeValue("value", -1));
+
+            foreach (var broker in brokersCodes)
+            {
+                var operationsPageForm = new List<KeyValuePair<string, string>>();
+                operationsPageForm.AddRange(GetHiddenFields(documentOperationsPageGet.DocumentNode));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$hdnPDF_EXCEL", ""));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ddlAgentes", broker.ToString()));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ddlContas", "0"));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$txtDataDeBolsa", initialDate));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$txtDataAteBolsa", endDate));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ToolkitScriptManager1", "ctl00$ContentPlaceHolder1$updFiltro|ctl00$ContentPlaceHolder1$btnConsultar"));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00_ContentPlaceHolder1_ToolkitScriptManager1_HiddenField", ""));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$btnConsultar", "Consultar"));
+
+                var operationsPagePostResult = await _httpClient.PostAsync(URL_OPERATIONS, new FormUrlEncodedContent(operationsPageForm));
+                var documentOperationsPagePost = new HtmlDocument();
+                documentOperationsPagePost.LoadHtml(await operationsPagePostResult.Content.ReadAsStringAsync());
+
+                var tables = documentOperationsPagePost.DocumentNode.SelectNodes("//table");
+                var tableOperations = tables.First();
+                var tbody = tableOperations.ChildNodes.SingleOrDefault(x => x.Name == "tbody");
+
+                if (tbody == null)
+                {
+                    continue;
+                }
+
+                foreach (var rows in tbody.ChildNodes)
+                {
+                    var columns = rows.ChildNodes.Where(x => x.Name == "td").ToList();
+
+                    if (!columns.Any())
+                    {
+                        continue;
+                    }
+
+                    var operation = new Operation
+                    {
+                        Date = DateTime.ParseExact(columns[0].InnerText.Trim(), "dd/MM/yyyy", null),
+                        OperationType = columns[1].InnerText.Trim(),
+                        Market = columns[2].InnerText.Trim(),
+                        Expiration = string.IsNullOrEmpty(columns[3].InnerText.Trim()) ? null : (DateTime?) DateTime.ParseExact(columns[3].InnerText.Trim(), "dd/MM/yyyy", null),
+                        Code = columns[4].InnerText.Trim(),
+                        Name = columns[5].InnerText.Trim(),
+                        Quantity = int.Parse(columns[6].InnerText.Trim()),
+                        Price = decimal.Parse(columns[7].InnerText.Trim().Replace(".", "").Replace(",", "."), NumberStyles.Currency),
+                        TotalValue = decimal.Parse(columns[8].InnerText.Trim().Replace(".", "").Replace(",", "."), NumberStyles.Currency),
+                        QuotationFactor = int.Parse(columns[9].InnerText.Trim())
+                    };
+
+                    result.Operations.Add(operation);
+                }
+            }
+
+            return result;
+        }
+
         public async Task<Wallet> GetWallet(DateTime? date = null)
         {
             await Login();
 
             var walletPageGetResult = await _httpClient.GetAsync(URL_WALLET);
-            
+
             var documentWalletGetPage = new HtmlDocument();
             documentWalletGetPage.LoadHtml(await walletPageGetResult.Content.ReadAsStringAsync());
 

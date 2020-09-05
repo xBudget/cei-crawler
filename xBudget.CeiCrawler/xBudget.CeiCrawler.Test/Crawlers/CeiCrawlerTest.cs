@@ -71,5 +71,12 @@ namespace xBudget.CeiCrawler.Test
 
             Assert.Equal(date.Date, result.Date);
         }
+
+        [Fact]
+        public async Task CeiCrawler_GetOperations()
+        {
+            var crawler = new xBudget.CeiCrawler.Crawlers.CeiCrawler(_username, _password);
+            var result = await crawler.GetOperations();
+        }
     }
 }
