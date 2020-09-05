@@ -82,7 +82,7 @@ namespace xBudget.CeiCrawler.Crawlers
             _loginDone = true;
         }
 
-        public async Task<OperationHistory> GetOperations()
+        public async Task<OperationHistory> GetOperations(DateTime? startDate = null, DateTime? endDate = null)
         {
             await Login();
 
@@ -92,16 +92,26 @@ namespace xBudget.CeiCrawler.Crawlers
             var documentOperationsPageGet = new HtmlDocument();
             documentOperationsPageGet.LoadHtml(await operationsPageGetResult.Content.ReadAsStringAsync());
 
-            var initialDate = documentOperationsPageGet.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_txtDataDeBolsa\"]").GetAttributeValue("value", "");
-            if (string.IsNullOrEmpty(initialDate))
+            var startDateFromPage = documentOperationsPageGet.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_txtDataDeBolsa\"]").GetAttributeValue("value", "");
+            if (string.IsNullOrEmpty(startDateFromPage))
             {
                 throw new ApplicationException("Initial date not found.");
             }
 
-            var endDate = documentOperationsPageGet.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_txtDataAteBolsa\"]").GetAttributeValue("value", "");
-            if (string.IsNullOrEmpty(endDate))
+            if (startDate.HasValue && startDate.Value < DateTime.ParseExact(startDateFromPage, "dd/MM/yyyy", null))
+            {
+                throw new InvalidDateRangeException($"Start date needs be grater than { startDateFromPage }");
+            }
+
+            var endDateFrompage = documentOperationsPageGet.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_txtDataAteBolsa\"]").GetAttributeValue("value", "");
+            if (string.IsNullOrEmpty(endDateFrompage))
             {
                 throw new ApplicationException("End date not found.");
+            }
+
+            if (endDate.HasValue && endDate.Value > DateTime.ParseExact(endDateFrompage, "dd/MM/yyyy", null))
+            {
+                throw new InvalidDateRangeException($"Start date needs be grater than { endDateFrompage }");
             }
 
             var brokers = documentOperationsPageGet.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_ddlAgentes\"]");
@@ -114,8 +124,8 @@ namespace xBudget.CeiCrawler.Crawlers
                 operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$hdnPDF_EXCEL", ""));
                 operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ddlAgentes", broker.ToString()));
                 operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ddlContas", "0"));
-                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$txtDataDeBolsa", initialDate));
-                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$txtDataAteBolsa", endDate));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$txtDataDeBolsa", startDate.HasValue ? startDate.Value.ToString("dd/MM/yyyy") : startDateFromPage));
+                operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$txtDataAteBolsa", endDate.HasValue ? endDate.Value.ToString("dd/MM/yyyy") : endDateFrompage));
                 operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ToolkitScriptManager1", "ctl00$ContentPlaceHolder1$updFiltro|ctl00$ContentPlaceHolder1$btnConsultar"));
                 operationsPageForm.Add(new KeyValuePair<string, string>("ctl00_ContentPlaceHolder1_ToolkitScriptManager1_HiddenField", ""));
                 operationsPageForm.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$btnConsultar", "Consultar"));

@@ -78,5 +78,21 @@ namespace xBudget.CeiCrawler.Test
             var crawler = new xBudget.CeiCrawler.Crawlers.CeiCrawler(_username, _password);
             var result = await crawler.GetOperations();
         }
+
+        [Fact]
+        public async Task CeiCrawler_GetOperations_InvalidStartDate()
+        {
+            var crawler = new xBudget.CeiCrawler.Crawlers.CeiCrawler(_username, _password);
+
+            await Assert.ThrowsAsync<InvalidDateRangeException>(async () => await crawler.GetOperations(DateTime.MinValue));
+        }
+
+        [Fact]
+        public async Task CeiCrawler_GetOperations_InvalidEndDate()
+        {
+            var crawler = new xBudget.CeiCrawler.Crawlers.CeiCrawler(_username, _password);
+
+            await Assert.ThrowsAsync<InvalidDateRangeException>(async () => await crawler.GetOperations(endDate: DateTime.MaxValue));
+        }
     }
 }
