@@ -13,7 +13,7 @@ xBudget CEI Crawler é um projeto que extrai informações de investimentos na b
 Os dados extraídos do CEI são de total responsabilidade da plataforma, o CEI Crawler apenas consulta os dados disponíveis no site.
 
 ## Como Instalar
-xBudget CEI Crawler é um projeto escrito em dotnet core atualmente na versão 3.1. A DLL está disponível para instalação através do [nuget.org](https://www.nuget.org/packages/xBudget.CeiCrawler/).
+xBudget CEI Crawler é um projeto escrito em dotnet core atualmente na versão 3.1. A DLL está disponível para instalação através do [nuget.org](https://www.nuget.org/packages/xBudget.CeiCrawler/). 
 
 ```
 dotnet add package xBudget.CeiCrawler
@@ -28,6 +28,9 @@ GetOperations(DateTime? startDate = null, DateTime? endDate = null)
 ```c#
 GetWallet(DateTime? date = null)
 ```
+
+## Alternativas em outras linguagens
+- [CEI Crawler escrito em Javascript](https://github.com/Menighin/cei-crawler)
 
 ## Licença
 MIT
