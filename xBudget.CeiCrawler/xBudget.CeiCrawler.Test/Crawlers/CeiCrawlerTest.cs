@@ -94,5 +94,12 @@ namespace xBudget.CeiCrawler.Test
 
             await Assert.ThrowsAsync<InvalidDateRangeException>(async () => await crawler.GetOperations(endDate: DateTime.MaxValue));
         }
+
+        [Fact]
+        public async Task CeiCrawler_GetDividends()
+        {
+            var crawler = new xBudget.CeiCrawler.Crawlers.CeiCrawler(_username, _password);
+            var result = await crawler.GetDividends();
+        }
     }
 }

@@ -23,6 +23,7 @@ namespace xBudget.CeiCrawler.Crawlers
         private const string URL_LOGIN = "https://cei.b3.com.br/CEI_Responsivo/login.aspx?MSG=SESENC";
         private const string URL_WALLET = "https://cei.b3.com.br/CEI_Responsivo/ConsultarCarteiraAtivos.aspx";
         private const string URL_OPERATIONS = "https://cei.b3.com.br/cei_responsivo/negociacao-de-ativos.aspx";
+        private const string URL_DIVIDENDS = "https://cei.b3.com.br/cei_responsivo/ConsultarProventos.aspx";
 
         public CeiCrawler(string user, string password)
         {
@@ -173,6 +174,86 @@ namespace xBudget.CeiCrawler.Crawlers
             return result;
         }
 
+        public async Task<List<Dividend>> GetDividends()
+        {
+            await Login();
+
+            var result = new List<Dividend>();
+
+            var dividendsPageGetResult = await _httpClient.GetAsync(URL_DIVIDENDS);
+            var documentDividendsGetPage = new HtmlDocument();
+            documentDividendsGetPage.LoadHtml(await dividendsPageGetResult.Content.ReadAsStringAsync());
+
+            var endDate = documentDividendsGetPage.DocumentNode.SelectSingleNode("//*[@id=\"ctl00_ContentPlaceHolder1_txtData\"]").GetAttributeValue("value", "");
+            if (string.IsNullOrEmpty(endDate))
+            {
+                throw new ApplicationException("End date not found.");
+            }
+
+            var formDividendsPage = new List<KeyValuePair<string, string>>();
+            formDividendsPage.AddRange(GetHiddenFields(documentDividendsGetPage.DocumentNode));
+            formDividendsPage.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ddlAgentes", "0"));
+            formDividendsPage.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ddlContas", "0"));
+            formDividendsPage.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$txtData", endDate));
+            formDividendsPage.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$btnConsultar", "Consultar"));
+            formDividendsPage.Add(new KeyValuePair<string, string>("ctl00$ContentPlaceHolder1$ToolkitScriptManager1", "ctl00$ContentPlaceHolder1$updFiltro|ctl00$ContentPlaceHolder1$btnConsultar"));
+            formDividendsPage.Add(new KeyValuePair<string, string>("ctl00_ContentPlaceHolder1_ToolkitScriptManager1_HiddenField", ""));
+
+            var dividendsPagePostResult = await _httpClient.PostAsync(URL_DIVIDENDS, new FormUrlEncodedContent(formDividendsPage));
+            var documentDividendsPostPage = new HtmlDocument();
+            documentDividendsPostPage.LoadHtml(await dividendsPagePostResult.Content.ReadAsStringAsync());
+
+            var tables = documentDividendsPostPage.DocumentNode.SelectNodes("//table");
+            var accountNumber = 0;
+            foreach (var table in tables)
+            {
+                var tbody = table.ChildNodes.SingleOrDefault(x => x.Name == "tbody");
+                if (tbody == null)
+                {
+                    continue;
+                }
+
+                foreach (var rows in tbody.ChildNodes)
+                {
+                    var columns = rows.ChildNodes.Where(x => x.Name == "td").ToList();
+
+                    if (!columns.Any())
+                    {
+                        continue;
+                    }
+
+                    DateTime date;
+                    var dateText = columns[3].InnerText.Trim();
+                    if (!DateTime.TryParseExact(dateText, "dd/MM/yyyy", null, DateTimeStyles.None, out date))
+                    {
+                        date = DateTime.MinValue;
+                    }
+
+                    try
+                    {
+                        result.Add(new Dividend
+                        {
+                            Stock = columns[0].InnerText.Trim(),
+                            StockType = columns[1].InnerText.Trim(),
+                            Code = columns[2].InnerText.Trim(),
+                            Date = date,
+                            Type = columns[4].InnerText.Trim(),
+                            Quantity = decimal.Parse(columns[5].InnerText.Trim().Replace(".", "").Replace(",", "."), NumberStyles.Currency),
+                            Factor = int.Parse(columns[6].InnerText.Trim()),
+                            GrossValue = decimal.Parse(columns[7].InnerText.Trim().Replace(".", "").Replace(",", "."), NumberStyles.Currency),
+                            NetValue = decimal.Parse(columns[8].InnerText.Trim().Replace(".", "").Replace(",", "."), NumberStyles.Currency)
+                        });
+                    }
+                    catch(Exception ex)
+                    {
+
+                    }                    
+                }
+            }
+
+            return result;
+        }
+
         public async Task<Wallet> GetWallet(DateTime? date = null)
         {
             await Login();
@@ -225,9 +306,7 @@ namespace xBudget.CeiCrawler.Crawlers
                     continue;
                 }
 
-                var result = Regex.Match(table.Id, "(_ctl\\d{2}_)").Captures.First();
-
-                var tableBroker = $"ctl00_ContentPlaceHolder1_rptAgenteContaMercado{ result.Value }lblAgenteContas";
+                var tableBroker = $"ctl00_ContentPlaceHolder1_rptAgenteContaMercado{ Regex.Match(table.Id, "(_ctl\\d{2}_)").Captures.First() }lblAgenteContas";
                 var brokerNameElement = documentWalletPostPage.DocumentNode.SelectNodes("//span").Where(x => x.Id == tableBroker).SingleOrDefault();
                 if (brokerNameElement == null)
                 {
