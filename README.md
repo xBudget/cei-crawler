@@ -29,6 +29,10 @@ GetOperations(DateTime? startDate = null, DateTime? endDate = null)
 GetWallet(DateTime? date = null)
 ```
 
+```c#
+GetDividends()
+```
+
 ## Alternativas em outras linguagens
 - [CEI Crawler escrito em Javascript](https://github.com/Menighin/cei-crawler)
 
