@@ -20,10 +20,10 @@ namespace xBudget.CeiCrawler.Crawlers
         private string _password;
         private bool _loginDone;
 
-        private const string URL_LOGIN = "https://cei.b3.com.br/CEI_Responsivo/login.aspx?MSG=SESENC";
-        private const string URL_WALLET = "https://cei.b3.com.br/CEI_Responsivo/ConsultarCarteiraAtivos.aspx";
-        private const string URL_OPERATIONS = "https://cei.b3.com.br/cei_responsivo/negociacao-de-ativos.aspx";
-        private const string URL_DIVIDENDS = "https://cei.b3.com.br/cei_responsivo/ConsultarProventos.aspx";
+        private const string URL_LOGIN = "https://ceiapp.b3.com.br/CEI_Responsivo/login.aspx?MSG=SESENC";
+        private const string URL_WALLET = "https://ceiapp.b3.com.br/CEI_Responsivo/ConsultarCarteiraAtivos.aspx";
+        private const string URL_OPERATIONS = "https://ceiapp.b3.com.br/cei_responsivo/negociacao-de-ativos.aspx";
+        private const string URL_DIVIDENDS = "https://ceiapp.b3.com.br/cei_responsivo/ConsultarProventos.aspx";
 
         public CeiCrawler(string user, string password)
         {
