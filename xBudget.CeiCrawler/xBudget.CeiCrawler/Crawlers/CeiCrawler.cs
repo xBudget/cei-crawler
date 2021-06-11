@@ -136,6 +136,9 @@ namespace xBudget.CeiCrawler.Crawlers
                 documentOperationsPagePost.LoadHtml(await operationsPagePostResult.Content.ReadAsStringAsync());
 
                 var tables = documentOperationsPagePost.DocumentNode.SelectNodes("//table");
+				
+				if (tables == null) continue;
+				
                 var tableOperations = tables.First();
                 var tbody = tableOperations.ChildNodes.SingleOrDefault(x => x.Name == "tbody");
 
